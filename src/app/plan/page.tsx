@@ -68,6 +68,13 @@ export default function PlanPage() {
   };
   const derivedStep = stepMap[normalizedPath] ?? 0;
 
+  // Compute today's date string for min attribute
+  const todayDate = new Date();
+  const yyyy = todayDate.getFullYear();
+  const mm = String(todayDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(todayDate.getDate()).padStart(2, '0');
+  const todayString = `${yyyy}-${mm}-${dd}`; // for min attribute to prevent past dates
+
   useEffect(() => {
     if (currentStep !== derivedStep) {
       setCurrentStep(derivedStep);
@@ -166,7 +173,12 @@ export default function PlanPage() {
                 <Input
                   type="date"
                   value={serviceStartDate}
-                  onChange={e => setServiceStartDate(e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val < todayString) return; // ignore past date
+                    setServiceStartDate(val);
+                  }}
+                  min={todayString}
                   className="rounded border-gray-300 focus:border-teal-500 focus:ring-teal-500 w-[95%] max-w-md h-[44px] py-3 mx-auto w-1/2"
                 />
               </div>

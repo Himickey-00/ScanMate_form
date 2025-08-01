@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Checkbox } from "@/components/ui/checkbox"
 
 import { useState, useEffect } from "react"
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,6 +21,14 @@ interface PlanOption {
 
 export default function PaymentPage() {
   const [agreed, setAgreed] = useState(false);
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const param = searchParams.get('agreed');
+    if (param === '1' || param === 'true') {
+      setAgreed(true);
+    }
+  }, [searchParams]);
 
   const {
     selectedPlan,
@@ -218,7 +226,10 @@ export default function PaymentPage() {
           <div className="flex items-center justify-center mb-6">
             <Checkbox id="agreement" checked={agreed} onCheckedChange={(v) => setAgreed(!!v)} className="mr-2 border-1 border-gray-500 rounded-sm bg-white" />
             <Label htmlFor="agreement" className="text-gray-800 text-md">
-              利用規約とプライバシーポリシーに同意します
+              <span className="mr-1">
+                <Link href="/privacy_policy" className="underline">利用規約とプライバシーポリシー</Link>
+                に同意します
+              </span>
             </Label>
           </div>
 
