@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Checkbox } from "@/components/ui/checkbox"
 
 import { useState, useEffect } from "react"
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,9 +28,27 @@ const plans: PlanOption[] = [
 ];
 
 export default function PaymentPage() {
-  const { selectedPlan, currentStep, setCurrentStep } = useFormStore();
+  const {
+    selectedPlan,
+    currentStep,
+    setCurrentStep,
+    cardNumber,
+    setCardNumber,
+    cardName,
+    setCardName,
+    expiry,
+    setExpiry,
+    cvv,
+    setCvv,
+  } = useFormStore();
+
+  const [cardNumberError, setCardNumberError] = useState("");
+  const [cardNameError, setCardNameError] = useState("");
+  const [expiryError, setExpiryError] = useState("");
+  const [cvvError, setCvvError] = useState("");
 
   const pathname = usePathname();
+  const router = useRouter();
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
   const stepMap: Record<string, number> = {
     "/": 0,
@@ -49,37 +67,89 @@ export default function PaymentPage() {
 
   const plan = plans.find(p => p.id === selectedPlan);
 
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardNumberError, setCardNumberError] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [cardNameError, setCardNameError] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [expiryError, setExpiryError] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [cvvError, setCvvError] = useState("");
+  function formatCardNumber(value: string): string {
+    const digits = value.replace(/\D/g, "").slice(0, 19); // 最大19桁まで
+    return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+  }
+  
+  function luhnCheck(ccNum: string): boolean {
+    let sum = 0;
+    let shouldDouble = false;
+    for (let i = ccNum.length - 1; i >= 0; i--) {
+      let digit = parseInt(ccNum.charAt(i), 10);
+      if (shouldDouble) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      sum += digit;
+      shouldDouble = !shouldDouble;
+    }
+    return sum % 10 === 0;
+  }
 
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value;
-    setCardNumber(v);
-    const clean = v.replace(/\s+/g, "");
-    setCardNumberError(/^\d{13,19}$/.test(clean) ? "" : "カード番号は13〜19桁の数字で入力してください");
+    const raw = e.target.value;
+    const digitsOnly = raw.replace(/\D/g, "").slice(0, 19);
+    const formatted = formatCardNumber(digitsOnly);
+    setCardNumber(formatted);
+
+    if (digitsOnly.length === 0) {
+      setCardNumberError("カード番号は必須です");
+      return;
+    }
+    if (digitsOnly.length < 13) {
+      // 途中入力ではエラーを出さず様子を見る
+      setCardNumberError("");
+      return;
+    }
+    if (!/^\d{13,19}$/.test(digitsOnly)) {
+      setCardNumberError("カード番号は13〜19桁の数字で入力してください");
+    } else if (!luhnCheck(digitsOnly)) {
+      setCardNumberError("カード番号が無効です");
+    } else {
+      setCardNumberError("");
+    }
   };
+
   const handleCardNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
     setCardName(v);
     setCardNameError(v.trim() ? "" : "名義は必須です");
   };
+
   const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
     setExpiry(v);
-    setExpiryError(/^(0[1-9]|1[0-2])\/\d{2}$/.test(v) ? "" : "有効期限はMM/YY形式で入力してください");
+    let errorMsg = "";
+    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(v)) {
+      errorMsg = "有効期限はMM/YY形式で入力してください";
+    } else {
+      const [mm, yy] = v.split('/');
+      const inputMonth = parseInt(mm, 10);
+      let inputYear = parseInt(yy, 10) + 2000;
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      if (inputYear < currentYear || (inputYear === currentYear && inputMonth < currentMonth)) {
+        errorMsg = "有効期限が過去になっています";
+      }
+    }
+    setExpiryError(errorMsg);
   };
+
   const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
     setCvv(v);
     setCvvError(/^\d{3,4}$/.test(v) ? "" : "セキュリティコードは3～4桁の数字で入力してください");
   };
 
+  const cardDigits = cardNumber.replace(/\D/g, "");
+  const isFormValid =
+    cardDigits.length >= 13 &&
+    cardNumberError === "" &&
+    cardName.trim() !== "" &&
+    expiryError === "" &&
+    cvvError === "";
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -133,7 +203,7 @@ export default function PaymentPage() {
             <div className="space-y-8">
               <h3 className="mt-3 mb-4 text-gray-700 text-center text-3xl font-semibold">支払い情報入力</h3>
               <p className="text-xl text-center text-gray-600 mb-8">ご契約プラン</p>
-        {plan && (
+        {plan ? (
   <div className="max-w-2xl mx-auto border-4 rounded-2xl px-6 py-8 mb-12 shadow-md border-[#4DBBC1] bg-white">
     <div className="flex items-center justify-between gap-8">
       <div className="flex-1 pr-6">
@@ -155,62 +225,78 @@ export default function PaymentPage() {
       </div>
     </div>
   </div>
+) : (
+  <div className="flex items-center justify-center text-red-600 font-semibold mb-4">プランが選択されていません。プラン選択に戻ってください。</div>
 )}
         
         {/* Credit Card Form */}
         <div className="space-y-8">
           {/* Card Number */}
           <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
+              <Label htmlFor="card-number" className="text-sm font-medium text-gray-700">
                 クレジットカード番号 <span className="text-red-500 text-xs">※必須項目</span>
               </Label>
             <Input
+              id="card-number"
               value={cardNumber}
               onChange={handleCardNumberChange}
               placeholder="1234 5678 9012 3456"
               className="rounded border-gray-300 focus:border-teal-500 focus:ring-teal-500 w-[50%] max-w-md h-[44px] py-3"
+              aria-invalid={Boolean(cardNumberError)}
+              aria-describedby="card-number-error"
             />
-            {cardNumberError && <p className="text-red-500 text-xs">{cardNumberError}</p>}
+            {cardNumberError && <p id="card-number-error" className="text-red-500 text-xs">{cardNumberError}</p>}
           </div>
           {/* Card Name */}
           <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
+              <Label htmlFor="card-name" className="text-sm font-medium text-gray-700">
                 名義 <span className="text-red-500 text-xs">※必須項目</span>
               </Label>
             <Input
+              id="card-name"
               value={cardName}
               onChange={handleCardNameChange}
               placeholder="TARO YAMADA"
               className="rounded border-gray-300 focus:border-teal-500 focus:ring-teal-500 w-[50%] max-w-md h-[44px] py-3"
+              aria-invalid={Boolean(cardNameError)}
+              aria-describedby="card-name-error"
             />
-            {cardNameError && <p className="text-red-500 text-xs">{cardNameError}</p>}
+            {cardNameError && <p id="card-name-error" className="text-red-500 text-xs">{cardNameError}</p>}
           </div>
           <div className="flex space-x-6">
             {/* Expiry */}
             <div className="space-y-2 w-1/2">
-              <Label className="text-sm font-medium text-gray-700">
+              <Label htmlFor="expiry" className="text-sm font-medium text-gray-700">
                 有効期限 <span className="text-red-500 text-xs">※必須項目</span>
               </Label>
               <Input
+                id="expiry"
                 value={expiry}
                 onChange={handleExpiryChange}
                 placeholder="MM/YY"
                 className="rounded border-gray-300 focus:border-teal-500 focus:ring-teal-500 w-[50%] max-w-md h-[44px] py-3"
+                aria-invalid={Boolean(expiryError)}
+                aria-describedby="expiry-error"
               />
-              {expiryError && <p className="text-red-500 text-xs">{expiryError}</p>}
+              {expiryError && <p id="expiry-error" className="text-red-500 text-xs">{expiryError}</p>}
             </div>
             {/* CVV */}
             <div className="space-y-2 w-1/2">
-              <Label className="text-sm font-medium text-gray-700">
+              <Label htmlFor="cvv" className="text-sm font-medium text-gray-700">
                 セキュリティコード <span className="text-red-500 text-xs">※必須項目</span>
               </Label>
               <Input
+                id="cvv"
+                type="password"
+                inputMode="numeric"
                 value={cvv}
                 onChange={handleCvvChange}
                 placeholder="123"
                 className="rounded border-gray-300 focus:border-teal-500 focus:ring-teal-500 w-[50%] max-w-md h-[44px] py-3"
+                aria-invalid={Boolean(cvvError)}
+                aria-describedby="cvv-error"
               />
-              {cvvError && <p className="text-red-500 text-xs">{cvvError}</p>}
+              {cvvError && <p id="cvv-error" className="text-red-500 text-xs">{cvvError}</p>}
             </div>
           </div>
         </div>
@@ -225,13 +311,15 @@ export default function PaymentPage() {
                   戻る
                 </Button>
               </Link>
-
-              <Link href="/confirm">
-                <Button
-                  className="rounded-md px-10 py-8 bg-[#4DBBC1] text-white text-lg font-semibold hover:bg-[#4DBBC1]/60">
-                  次へ
-                </Button>
-              </Link>                
+              <Button
+                onClick={() => {
+                  if (!isFormValid) return;
+                  router.push('/confirm');
+                }}
+                disabled={!isFormValid}
+                className="rounded-md px-10 py-8 bg-[#4DBBC1] text-white text-lg font-semibold hover:bg-[#4DBBC1]/60 disabled:opacity-50">
+                次へ
+              </Button>                
           </div>
         </div>
       </div>

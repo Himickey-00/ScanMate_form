@@ -284,9 +284,31 @@ interface FormErrors {
   }
 
   const handleInputChange = (field: keyof FormData, value: string | boolean) => {
+    if (field === "sameAsRepresentative") {
+      if (value === true) {
+        // copy representative into contact when checked
+        setContactName(representativeName);
+        setContactNameKana(representativeNameKana);
+        setFormData({
+          ...formData,
+          sameAsRepresentative: true,
+          contactName: representativeName,
+          contactNameKana: representativeNameKana,
+        });
+      } else {
+        // unchecking: just clear the flag, keep existing contact values
+        setFormData({
+          ...formData,
+          sameAsRepresentative: false,
+        });
+      }
+      return; // early return since handled
+    }
+
+    // for all other fields
     setFormData({
       ...formData,
-      [field]: value
+      [field]: value,
     });
 
     // Real-time validation for string fields
@@ -318,15 +340,6 @@ interface FormErrors {
         setErrors(rest);
       }
     }
-
-    // Auto-fill contact name when checkbox is checked
-    if (field === "sameAsRepresentative" && value === true) {
-      setFormData({
-        ...formData,
-        contactName: formData.representativeName,
-        contactNameKana: formData.representativeNameKana,
-      });
-    }
   }
 
   const handleBlur = (field: keyof FormData) => {
@@ -346,6 +359,18 @@ interface FormErrors {
       setErrors(rest);
     }
   }
+  // Keep contact fields in sync with representative if checkbox is checked
+  useEffect(() => {
+    if (sameAsRepresentative) {
+      setContactName(representativeName);
+      setContactNameKana(representativeNameKana);
+      setFormData({
+        ...formData,
+        contactName: representativeName,
+        contactNameKana: representativeNameKana,
+      });
+    }
+  }, [sameAsRepresentative, representativeName, representativeNameKana]);
   
   return (
      <div className="min-h-screen bg-gray-100">
@@ -525,7 +550,7 @@ interface FormErrors {
                   <Checkbox
                     id="sameAsRepresentative"
                     checked={sameAsRepresentative}
-                    onCheckedChange={(checked) => setSameAsRepresentative(Boolean(checked))}
+                    onCheckedChange={(checked) => handleInputChange("sameAsRepresentative", Boolean(checked))}
                   />
                   <Label htmlFor="sameAsRepresentative" className="text-sm">
                     会社代表者名と同一（自動入力されます）

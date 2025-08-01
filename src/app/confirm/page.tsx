@@ -53,6 +53,10 @@ export default function PaymentPage() {
     expiry,
   } = useFormStore();
 
+  useEffect(() => {
+    console.debug('Confirm page form store values:', { selectedPlan, plan: selectedPlan, expiry, cardName });
+  }, [selectedPlan, expiry, cardName]);
+
   const pathname = usePathname();
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
   const stepMap: Record<string, number> = {
@@ -187,7 +191,7 @@ export default function PaymentPage() {
             <div className="font-semibold text-gray-700">契約プラン</div>
             <div>
               <span className="inline-block px-3 py-1 rounded-full bg-[#4DBBC1]/10 text-[#4DBBC1] font-semibold">
-                {plan?.name || 'xxx'}
+                {plan?.name ?? selectedPlan ?? 'xxx'}
               </span>
             </div>
             <div className="font-semibold text-gray-700">サービス開始日</div>
@@ -201,9 +205,9 @@ export default function PaymentPage() {
             <div className="font-semibold text-gray-700">クレジットカード番号</div>
             <div>{getMaskedCardNumber(cardNumber)}</div>
             <div className="font-semibold text-gray-700">有効期限</div>
-            <div>{expiry?.trim() ? expiry : 'xxx'}</div>
+            <div>{expiry && expiry.trim() !== '' ? expiry : 'xxx'}</div>
             <div className="font-semibold text-gray-700">名義</div>
-            <div>{cardName?.trim() ? cardName : 'xxx'}</div>
+            <div>{cardName && cardName.trim() !== '' ? cardName : 'xxx'}</div>
           </div>
         </div>
       </div>

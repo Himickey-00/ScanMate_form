@@ -136,20 +136,21 @@ export const useFormStore = create<FormState>((set) => ({
   setSameAsRepresentative: (value: boolean) => set({ sameAsRepresentative: value }),
 
   selectedPlan: '',
-  setSelectedPlan: (value: string) => set({ selectedPlan: value }),
+  setSelectedPlan: (value: string) => set((state) => ({ selectedPlan: value, formData: { ...state.formData, selectedPlan: value } })),
   serviceStartDate: '',
-  setServiceStartDate: (value: string) => set({ serviceStartDate: value }),
+  setServiceStartDate: (value: string) => set((state) => ({ serviceStartDate: value, formData: { ...state.formData, serviceStartDate: value } })),
   cardNumber: '',
-  setCardNumber: (value: string) => set({ cardNumber: value }),
+  setCardNumber: (value: string) => set((state) => ({ cardNumber: value, formData: { ...state.formData, cardNumber: value } })),
   cardName: '',
-  setCardName: (value: string) => set({ cardName: value }),
+  setCardName: (value: string) => set((state) => ({ cardName: value, formData: { ...state.formData, cardName: value } })),
   expiry: '',
-  setExpiry: (value: string) => set({ expiry: value }),
+  setExpiry: (value: string) => set((state) => ({ expiry: value, formData: { ...state.formData, expiry: value } })),
   cvv: '',
-  setCvv: (value: string) => set({ cvv: value }),
+  setCvv: (value: string) => set((state) => ({ cvv: value, formData: { ...state.formData, cvv: value } })),
 
   formData: {} as Omit<FormState, 'formData' | 'setFormData' | 'setErrors' | 'setTouched' | 'setCurrentStep'>,
   setFormData: (value) => set((state) => ({
-    ...value
+    ...state,
+    ...value,
   })),
 }))
